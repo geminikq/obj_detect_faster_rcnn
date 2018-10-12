@@ -9,6 +9,8 @@ import time
 import cv2
 from skimage import io
 from datetime import datetime
+import _pickle as cPickle
+import os
 
 from config.config_input import ImageInput
 from config.config_model import DefaultModelConfig
@@ -17,7 +19,8 @@ from config.config_train import DefaultTrainConfig
 from data_process.data_reader import DataReader
 from model.VGGnet_faster_rcnn import VGGNetFasterRCNNModel
 from trainval.trainer import Trainer
-from trainval.visual import get_bboxes_classes_probs
+from trainval.visual import draw_bboxes_classes_probs
+from trainval.evaluate import get_detect_results, detects_evaluation
 
 
 class Processor(object):
@@ -88,7 +91,8 @@ class Processor(object):
                 format_str = '%s: step %d, loss = %.2f (%.3f sec/batch)'
                 print(format_str % (datetime.now(), i, train_loss, duration))
 
-                writer.add_summary(summary, i)
+                if i % 10 == 0:
+                    writer.add_summary(summary, i)
 
                 if i % trainer.cfg.save_frequency == 0 and i > 0:
                     file_name = 'train_iter_' + str(i) + '.ckpt'
@@ -98,50 +102,75 @@ class Processor(object):
 
     def test_loop(self,
                   data=ImageInput(),
-                  model=DefaultModelConfig(),
-                  weights_file_path=None):
+                  model_cfg=DefaultModelConfig(),
+                  weights_file_path=None, vis=False):
         reader = DataReader(data)
         roidb = reader.prepare_roidb()
-        _, epe = roidb.filter_roidb(model)
+        _, epe = roidb.filter_roidb(model_cfg)
 
         # build model
-        model = VGGNetFasterRCNNModel(model)
+        model = VGGNetFasterRCNNModel(model_cfg)
         pred_op = model.inference(model.Evaluation)
 
-        saver = tf.train.Saver(write_version=tf.train.SaverDef.V1)
-        # saver = tf.train.Saver()
+        # saver = tf.train.Saver(write_version=tf.train.SaverDef.V1)
+        saver = tf.train.Saver()
 
+        # epe = 20
         max_iters = epe
-        max_iters = 1
+
+        all_boxes = [[[] for _ in range(epe)]
+                     for _ in range(model_cfg.num_classes)]
+        all_gt_boxes = [[] for _ in range(epe)]
+
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             # model.set_train_start_point(sess, saver, weights_file_path)
-            saver.restore(sess, weights_file_path)
+            # saver.restore(sess, weights_file_path)
+            saver.restore(sess, tf.train.latest_checkpoint(weights_file_path))
 
             for i in range(max_iters):
+                start = time.time()
 
                 blob = roidb.forward()
-                # cv2.imshow('test', blob['data'][0])
-                # cv2.waitKey()
+
                 scale = blob['im_info'][0][-1]
                 image = cv2.imread(blob['image'])
                 image = cv2.resize(image, None, None, scale, scale, interpolation=cv2.INTER_LINEAR)
-                # cv2.imshow('test', image)
-                # cv2.waitKey()
 
                 feed = {model.data: blob['data'], model.gt_boxes: blob['gt_boxes'],
                         model.im_info: blob['im_info'], model.keep_prob: 1.0}
 
                 cls_prob, bbox_pred, rois = sess.run(pred_op, feed_dict=feed)
-                image = get_bboxes_classes_probs(
-                    image, cls_prob, np.array(rois)[0][:, 1:5], bbox_pred,
-                    blob['im_info'], blob['gt_boxes'], data.classes)
-                # image = image / blob['im_info'][0][-1]
-                # scale = 1.0 / blob['im_info'][0][-1]
-                # image = cv2.resize(image, None, None, scale, scale, interpolation=cv2.INTER_LINEAR)
-                # image += data.pixel_means
-                cv2.imshow('result', image)
-                cv2.waitKey()
 
+                dets = get_detect_results(
+                    data.classes, cls_prob, np.array(rois)[0][:, 1:5], bbox_pred, blob['im_info'])
 
+                for i_cls in range(1, len(dets)):
+                    all_boxes[i_cls][i] = dets[i_cls]
+                all_gt_boxes[i] = blob['gt_boxes']
+
+                end = time.time()
+                duration = end - start
+
+                format_str = '%s: step %d, (%.3f sec/batch)'
+                print(format_str % (datetime.now(), i, duration))
+
+                if vis is True:
+                    image = draw_bboxes_classes_probs(
+                        image, cls_prob, np.array(rois)[0][:, 1:5], bbox_pred,
+                        blob['im_info'], blob['gt_boxes'], data.classes)
+
+                    # image = image / blob['im_info'][0][-1]
+                    # scale = 1.0 / blob['im_info'][0][-1]
+                    # image = cv2.resize(image, None, None, scale, scale, interpolation=cv2.INTER_LINEAR)
+                    # image += data.pixel_means
+                    cv2.imshow('result', image)
+                    cv2.waitKey()
+
+        det_file = os.path.join(data.cache_path, data.name + '_detections.pkl')
+        with open(det_file, 'wb') as f:
+            cPickle.dump(all_boxes, f, protocol=-1)
+        print('wrote detections results to {}'.format(det_file))
+
+        detects_evaluation(all_boxes, all_gt_boxes, data.classes)
 

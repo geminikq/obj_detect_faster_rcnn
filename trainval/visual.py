@@ -6,51 +6,7 @@
 import numpy as np
 import cv2
 from model.utils.bbox import bbox_overlaps
-from model.utils.bbox_trans import bbox_transform_inv, clip_boxes
-from model.utils.nms import nms
-
-
-def _get_bboxes_predicted(rois, bbox_deltas, im_info):
-    pred_bboxes = bbox_transform_inv(rois, bbox_deltas)
-    pred_bboxes = clip_boxes(pred_bboxes, im_info)
-    return pred_bboxes
-
-
-def _get_max_overlaps(pred_bboxes, gt_boxes, threshold):
-    overlaps = bbox_overlaps(
-        np.ascontiguousarray(gt_boxes[:, :4], dtype=np.float32),
-        np.ascontiguousarray(np.reshape(pred_bboxes, (-1, 4)), dtype=np.float32))
-    num_classes = int(pred_bboxes.shape[-1] / 4)
-    overlaps = np.reshape(overlaps, (-1, num_classes))
-
-    max_overlaps = overlaps.max(axis=1)
-    ind_overlaps = overlaps.argmax(axis=1)
-    cls_max_overlaps = max_overlaps.argmax()
-
-    inds = np.where(max_overlaps >= threshold)[0]
-
-    return ind_overlaps, inds
-
-
-def recover_bboxes(rois, bbox_deltas, im_info, gt_boxes, threshold):
-    pred_bboxes = _get_bboxes_predicted(rois, bbox_deltas, im_info[0])
-    return _get_max_overlaps(pred_bboxes, gt_boxes, threshold)
-
-
-def _get_detect_results(classes, scores, bboxes):
-    detect_classes = [[]]
-    # detect_classes.append([])
-    for idx, cls in enumerate(classes[1:]):
-        idx += 1
-        cls_boxes = bboxes[:, 4*idx:4*(idx+1)]
-        cls_scores = scores[:, idx]
-        dets = np.hstack((cls_boxes, cls_scores[:, np.newaxis])).astype(np.float32)
-        keep = nms(dets, 0.3)
-        dets = dets[keep, :]
-        detect_classes.append(dets)
-        # draw_bboxes(image, bboxes, 0.5)
-
-    return detect_classes
+from trainval.evaluate import get_detect_results
 
 
 def draw_bboxes(image, bboxes, name, threshold):
@@ -81,11 +37,11 @@ def draw_gt_bboxes(image, gt_boxes, classes):
         cv2.putText(image, name, (x1, y2), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, color_gt, 2)
 
 
-def get_bboxes_classes_probs(image, scores, rois, bbox_deltas, im_info, gt_boxes, classes):
-    pred_bboxes = _get_bboxes_predicted(rois, bbox_deltas, im_info[0])
+def draw_bboxes_classes_probs(image, scores, rois, bbox_deltas, im_info, gt_boxes, classes):
+    # pred_bboxes = _get_bboxes_predicted(rois, bbox_deltas, im_info[0])
 
     # ind_overlaps, inds = _get_max_overlaps(pred_bboxes, gt_boxes, 0.5)
-    detects = _get_detect_results(classes, scores, pred_bboxes)
+    detects = get_detect_results(classes, scores, rois, bbox_deltas, im_info)
 
     for idx, dets in enumerate(detects):
         draw_bboxes(image, dets, classes[idx], 0.8)

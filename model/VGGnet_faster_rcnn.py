@@ -13,7 +13,7 @@ from config.config_input import PascalVOC2007Input
 from model.feat_extract.vgg16 import VGGFeatureExtractor
 from model.rpn.rpn import RPNModel
 from model.rcnn.rcnn import RCNNModel
-from trainval.visual import get_bboxes_classes_probs
+from trainval.visual import draw_bboxes_classes_probs
 
 
 class VGGNetFasterRCNNModel(object):
@@ -47,11 +47,14 @@ class VGGNetFasterRCNNModel(object):
                         #     raise
 
     def set_train_start_point(self, sess, saver, ckpt_file):
-        if ckpt_file is not None and os.path.exists(ckpt_file):
+        if ckpt_file is not None and os.path.exists(ckpt_file + '.index'):
             step = int(ckpt_file.split('.')[-2].split('_')[-1])
             print('load ckpt and start from iter: {}'.format(step))
             saver.restore(sess, ckpt_file)
             return step
+        elif ckpt_file is not None:
+            saver.restore(sess, ckpt_file)
+            return 0
         else:
             self.load_weights_pre_trained(sess)
             return 0
@@ -60,7 +63,7 @@ class VGGNetFasterRCNNModel(object):
         bbox_input = [
             image, cls_prob, rois, bbox_pred,
             self.im_info, self.gt_boxes, PascalVOC2007Input().classes]
-        result = tf.py_func(get_bboxes_classes_probs, bbox_input, [tf.float32])
+        result = tf.py_func(draw_bboxes_classes_probs, bbox_input, [tf.float32])
         tf.summary.image('bbox_image', result)
 
     def inference(self, trainval):

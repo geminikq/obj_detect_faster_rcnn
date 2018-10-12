@@ -62,8 +62,8 @@ class PascalVOC2007Input(ImageInput):
 
 
 class Pascal2007Test(PascalVOC2007Input):
-    name = 'pascal_voc_2007_horse_test'
-    train_set = 'horse_test'
+    name = 'pascal_voc_2007_test'
+    train_set = 'test'
 
     if_flipped = False
 

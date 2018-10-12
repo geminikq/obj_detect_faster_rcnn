@@ -6,7 +6,7 @@
 import tensorflow as tf
 import numpy as np
 from config.config_train import DefaultTrainConfig
-from trainval.visual import recover_bboxes
+from trainval.evaluate import recover_bboxes
 
 
 class Trainer(object):

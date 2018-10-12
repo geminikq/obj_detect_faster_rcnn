@@ -42,7 +42,7 @@ class DefaultTrainConfig(object):
             return './dataset/pretrain_model/VGGnet_fast_rcnn_iter_70000.ckpt'
         else:
             return tf.train.latest_checkpoint(self.ckpt_path_base)
-        # return self.train_dir + '/ckpt/checkpoint'
+            # return self.train_dir + '/ckpt/checkpoint'
 
     @property
     def save_frequency(self):
