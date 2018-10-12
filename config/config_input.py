@@ -68,3 +68,9 @@ class Pascal2007Test(PascalVOC2007Input):
     if_flipped = False
 
 
+class DemoImageInput(ImageInput):
+    file_path = './dataset/demo/'
+    name = 'demo_test'
+    train_set = 'test'
+
+    if_flipped = False

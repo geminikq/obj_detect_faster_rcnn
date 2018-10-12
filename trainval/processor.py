@@ -174,3 +174,54 @@ class Processor(object):
 
         detects_evaluation(all_boxes, all_gt_boxes, data.classes)
 
+    def demo_loop(self,
+                  data=ImageInput(),
+                  model_cfg=DefaultModelConfig(),
+                  weights_file_path=None):
+
+        reader = DataReader(data)
+        roidb = reader.prepare_roidb()
+        _, epe = roidb.filter_roidb(model_cfg)
+
+        # build model
+        model = VGGNetFasterRCNNModel(model_cfg)
+        pred_op = model.inference(model.Evaluation)
+
+        # saver = tf.train.Saver(write_version=tf.train.SaverDef.V1)
+        saver = tf.train.Saver()
+
+        max_iters = 1
+        with tf.Session() as sess:
+            sess.run(tf.global_variables_initializer())
+            # model.set_train_start_point(sess, saver, weights_file_path)
+            # saver.restore(sess, weights_file_path)
+            saver.restore(sess, tf.train.latest_checkpoint(weights_file_path))
+
+            for i in range(max_iters):
+                start = time.time()
+
+                blob = roidb.forward()
+
+                scale = blob['im_info'][0][-1]
+                image = cv2.imread(blob['image'])
+                image = cv2.resize(image, None, None, scale, scale, interpolation=cv2.INTER_LINEAR)
+
+                feed = {model.data: blob['data'], model.gt_boxes: blob['gt_boxes'],
+                        model.im_info: blob['im_info'], model.keep_prob: 1.0}
+
+                cls_prob, bbox_pred, rois = sess.run(pred_op, feed_dict=feed)
+
+                dets = get_detect_results(
+                    data.classes, cls_prob, np.array(rois)[0][:, 1:5], bbox_pred, blob['im_info'])
+
+                end = time.time()
+                duration = end - start
+
+                format_str = '%s: step %d, (%.3f sec/batch)'
+                print(format_str % (datetime.now(), i, duration))
+
+                image = draw_bboxes_classes_probs(
+                    image, cls_prob, np.array(rois)[0][:, 1:5], bbox_pred,
+                    blob['im_info'], blob['gt_boxes'], data.classes)
+                cv2.imshow('result', image)
+                cv2.waitKey()

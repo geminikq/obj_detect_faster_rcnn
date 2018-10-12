@@ -56,6 +56,14 @@ class DataReader:
         format.
         """
         filename = os.path.join(self.cfg.file_path, 'Annotations', index + '.xml')
+        if not os.path.exists(filename):
+            print('Can not find annotations')
+            return {'boxes' : np.zeros((1, 4), dtype=np.uint16),
+                    'gt_classes': np.zeros(1, dtype=np.int32),
+                    'gt_overlaps': scipy.sparse.csr_matrix(
+                        np.zeros((1, self.num_classes), dtype=np.float32)),
+                    'flipped' : False,
+                    'seg_areas' : None}
         tree = ET.parse(filename)
         objs = tree.findall('object')
         if not self.cfg.data_set_cfg['use_diff']:
