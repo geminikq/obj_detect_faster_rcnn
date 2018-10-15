@@ -132,13 +132,13 @@ class RPNModel(CNNModel):
         rpn_conv_3x3 = self.layer_conv(
             feature_maps, 3, 1, 512, name='rpn_conv/3x3', stddev=0.01)
         rpn_cls_score = self.layer_conv(
-            rpn_conv_3x3, 1, 1, len_anchor*3*2, 'VALID', name='rpn_cls_score',
+            rpn_conv_3x3, 1, 1, len_anchor*3*2, name='rpn_cls_score',
             relu=False, stddev=0.01)
 
         # rpn_data = self.layer_anchor_target(rpn_cls_score, gt_boxes, im_info, name='rpn-data')
 
         rpn_bbox_pred = self.layer_conv(
-            rpn_conv_3x3, 1, 1, len_anchor*3*4, 'VALID', name='rpn_bbox_pred',
+            rpn_conv_3x3, 1, 1, len_anchor*3*4, name='rpn_bbox_pred',
             relu=False, stddev=0.01)
 
         rpn_cls_score_reshape = self.layer_reshape_rpn(
