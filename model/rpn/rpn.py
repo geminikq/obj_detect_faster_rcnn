@@ -52,11 +52,13 @@ class RPNModel(CNNModel):
     def layer_reshape_rpn(input_x, depth_out, name):
         with tf.variable_scope(name) as scope:
             input_shape = tf.shape(input_x)
-            float_inshape = tf.cast(input_shape, tf.float32)
+            # float_inshape = tf.cast(input_shape, tf.float32)
+            in_shape_f_1 = tf.cast(input_shape[1], tf.float32)
+            in_shape_f_3 = tf.cast(input_shape[3], tf.float32)
             if name == 'rpn_cls_prob_reshape':
-                reshape_depth = float_inshape[1] / tf.cast(depth_out, tf.float32) * float_inshape[3]
+                reshape_depth = in_shape_f_1 / tf.cast(depth_out, tf.float32) * in_shape_f_3
             else:
-                reshape_depth = float_inshape[1] * (float_inshape[3] / tf.cast(depth_out, tf.float32))
+                reshape_depth = in_shape_f_1 * (in_shape_f_3 / tf.cast(depth_out, tf.float32))
 
             reshape_to = [input_shape[0], int(depth_out), tf.cast(reshape_depth, tf.int32), input_shape[2]]
             reshape_ori = tf.reshape(tf.transpose(input_x, [0, 3, 1, 2]), reshape_to)

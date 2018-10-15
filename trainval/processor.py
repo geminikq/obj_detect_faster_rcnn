@@ -190,7 +190,7 @@ class Processor(object):
         # saver = tf.train.Saver(write_version=tf.train.SaverDef.V1)
         saver = tf.train.Saver()
 
-        max_iters = 1
+        max_iters = epe
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             # model.set_train_start_point(sess, saver, weights_file_path)
