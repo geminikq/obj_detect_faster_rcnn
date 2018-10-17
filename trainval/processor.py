@@ -14,7 +14,7 @@ import os
 
 from config.config_input import ImageInput
 from config.config_model import DefaultModelConfig
-from config.config_train import DefaultTrainConfig
+from config.config_train import DefaultTrainConfig, DefaultTestConfig
 
 from data_process.data_reader import DataReader
 from model.VGGnet_faster_rcnn import VGGNetFasterRCNNModel
@@ -103,7 +103,7 @@ class Processor(object):
     def test_loop(self,
                   data=ImageInput(),
                   model_cfg=DefaultModelConfig(),
-                  weights_file_path=None, vis=False):
+                  test_cfg=DefaultTestConfig()):
         reader = DataReader(data)
         roidb = reader.prepare_roidb()
         _, epe = roidb.filter_roidb(model_cfg)
@@ -112,8 +112,8 @@ class Processor(object):
         model = VGGNetFasterRCNNModel(model_cfg)
         pred_op = model.inference(model.Evaluation)
 
-        # saver = tf.train.Saver(write_version=tf.train.SaverDef.V1)
-        saver = tf.train.Saver()
+        saver = tf.train.Saver(write_version=tf.train.SaverDef.V1) \
+            if test_cfg.restore_type == 'ckpt_v1' else tf.train.Saver()
 
         # epe = 20
         max_iters = epe
@@ -125,8 +125,8 @@ class Processor(object):
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             # model.set_train_start_point(sess, saver, weights_file_path)
-            # saver.restore(sess, weights_file_path)
-            saver.restore(sess, tf.train.latest_checkpoint(weights_file_path))
+            saver.restore(sess, test_cfg.ckpt_file)
+            # saver.restore(sess, tf.train.latest_checkpoint(weights_file_path))
 
             for i in range(max_iters):
                 start = time.time()
@@ -155,7 +155,7 @@ class Processor(object):
                 format_str = '%s: step %d, (%.3f sec/batch)'
                 print(format_str % (datetime.now(), i, duration))
 
-                if vis is True:
+                if test_cfg.visual_while_test is True:
                     image = draw_bboxes_classes_probs(
                         image, cls_prob, np.array(rois)[0][:, 1:5], bbox_pred,
                         blob['im_info'], blob['gt_boxes'], data.classes)
@@ -187,15 +187,15 @@ class Processor(object):
         model = VGGNetFasterRCNNModel(model_cfg)
         pred_op = model.inference(model.Evaluation)
 
-        # saver = tf.train.Saver(write_version=tf.train.SaverDef.V1)
-        saver = tf.train.Saver()
+        saver = tf.train.Saver(write_version=tf.train.SaverDef.V1)
+        # saver = tf.train.Saver()
 
         max_iters = epe
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
             # model.set_train_start_point(sess, saver, weights_file_path)
-            # saver.restore(sess, weights_file_path)
-            saver.restore(sess, tf.train.latest_checkpoint(weights_file_path))
+            saver.restore(sess, weights_file_path)
+            # saver.restore(sess, tf.train.latest_checkpoint(weights_file_path))
 
             for i in range(max_iters):
                 start = time.time()

@@ -48,3 +48,10 @@ class DefaultTrainConfig(object):
     def save_frequency(self):
         return self.examples_per_epoch
 
+
+class DefaultTestConfig(DefaultTrainConfig):
+    name = 'test'
+    restore_type = 'ckpt_v1'
+
+    visual_while_test = False
+

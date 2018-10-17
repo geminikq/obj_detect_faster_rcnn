@@ -8,15 +8,26 @@ import cv2
 from model.utils.bbox import bbox_overlaps
 from trainval.evaluate import get_detect_results
 
+color_classes = [
+    (0, 0, 0),    # background
+    (255,   0,   0), (255, 143,   0), (255, 226,   0), (255, 249,   0),
+    (214, 255,   0), (155, 255,   0), (49,  255,   0), (0,   255, 175),
+    (0,   241, 255), (0,   171, 255), (0,   100, 255), (0,     6, 255),
+    (65,    0, 255), (206,   0, 255), (255,   0, 163), (128,  54,  54),
+    (109, 128,  54), (54,  128,  57), (54,  124, 128), (54,   51,  99),
+]
 
-def draw_bboxes(image, bboxes, name, threshold):
+
+def draw_bboxes(image, bboxes, name, idx, threshold):
     if len(bboxes) == 0:
         return
     inds = np.where(bboxes[:, -1] >= threshold)[0]
     if len(inds) == 0:
         return
 
-    color_digit = (0, 255, 0)
+    # color_digit = (0, 255, 0)
+    color_digit = color_classes[idx]
+
     for i in inds:
         bbox = bboxes[i, :4]
         score = bboxes[i, -1]
@@ -44,7 +55,7 @@ def draw_bboxes_classes_probs(image, scores, rois, bbox_deltas, im_info, gt_boxe
     detects = get_detect_results(classes, scores, rois, bbox_deltas, im_info)
 
     for idx, dets in enumerate(detects):
-        draw_bboxes(image, dets, classes[idx], 0.8)
+        draw_bboxes(image, dets, classes[idx], idx, 0.8)
 
     draw_gt_bboxes(image, gt_boxes, classes)
     # cls_pred = np.argmax(scores[ind_overlaps[inds]], axis=1)
