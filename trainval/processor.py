@@ -94,11 +94,11 @@ class Processor(object):
                 if i % 10 == 0:
                     writer.add_summary(summary, i)
 
-                if i % trainer.cfg.save_frequency == 0 and i > 0:
+                if i % (trainer.cfg.save_frequency / 10) == 0 and i > 0:
                     file_name = 'train_iter_' + str(i) + '.ckpt'
                     save_path = trainer.cfg.ckpt_path_base + file_name
                     saver.save(sess, save_path)
-                    print('save snapshot to : {}'.format(save_path))
+                    print('save checkpoint to : {}'.format(save_path))
 
     def test_loop(self,
                   data=ImageInput(),
